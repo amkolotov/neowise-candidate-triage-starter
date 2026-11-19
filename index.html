@@ -22,14 +22,34 @@
   <script type="module">
     const form = document.querySelector("form");
     const result = document.querySelector("#result");
+    const button = form.querySelector("button");
+    const retry = "Не удалось обработать заявку. Повторите отправку.";
+    const messages = new Map([
+      ["manual_review", "Обработайте заявку вручную."],
+      ["invalid_input", "Введите текст заявки."],
+    ]);
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const reply = await fetch("/api/triage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: document.querySelector("#message").value }),
-      });
-      result.textContent = JSON.stringify(await reply.json(), null, 2);
+      if (button.disabled) return;
+      button.disabled = true;
+      result.textContent = "";
+
+      try {
+        const reply = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: document.querySelector("#message").value }),
+        });
+        const { status, topic, draft } = await reply.json();
+        result.textContent = status === "ready"
+          ? `Тема: ${topic}\n\n${draft}`
+          : messages.get(status) ?? retry;
+      } catch {
+        result.textContent = retry;
+      } finally {
+        button.disabled = false;
+      }
     });
   </script>
 </body>
