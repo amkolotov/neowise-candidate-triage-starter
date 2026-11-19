@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Входящие заявки</title>
+  <style>
+    body { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui, sans-serif; }
+    textarea { box-sizing: border-box; display: block; width: 100%; margin: .5rem 0; padding: .5rem; font: inherit; }
+    button { padding: .4rem .8rem; font: inherit; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Входящие заявки</h1>
+  <form>
+    <label for="message">Текст заявки</label>
+    <textarea id="message" rows="4"></textarea>
+    <button type="submit">Разобрать заявку</button>
+  </form>
+  <pre id="result" aria-live="polite"></pre>
+  <script type="module">
+    const form = document.querySelector("form");
+    const result = document.querySelector("#result");
+    const button = form.querySelector("button");
+    const retry = "Не удалось обработать заявку. Повторите отправку.";
+    const messages = new Map([
+      ["manual_review", "Обработайте заявку вручную."],
+      ["invalid_input", "Введите текст заявки."],
+    ]);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+      button.disabled = true;
+      result.textContent = "";
+
+      try {
+        const reply = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: document.querySelector("#message").value }),
+        });
+        const { status, topic, draft } = await reply.json();
+        result.textContent = status === "ready"
+          ? `Тема: ${topic}\n\n${draft}`
+          : messages.get(status) ?? retry;
+      } catch {
+        result.textContent = retry;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
